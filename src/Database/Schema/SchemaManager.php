@@ -2,28 +2,38 @@
 
 namespace TCG\Voyager\Database\Schema;
 
-use Doctrine\DBAL\Schema\SchemaException;
-use Doctrine\DBAL\Schema\Table as DoctrineTable;
+use Doctrine\DBAL\DriverManager;
 use Illuminate\Support\Facades\DB;
 use TCG\Voyager\Database\Types\Type;
+use Doctrine\DBAL\Schema\SchemaException;
+use Doctrine\DBAL\Schema\Table as DoctrineTable;
 
 abstract class SchemaManager
 {
+
     // todo: trim parameters
 
     public static function __callStatic($method, $args)
     {
-        return static::manager()->$method(...$args);
+        return static::getDatabaseConnection()->$method(...$args);
     }
 
     public static function manager()
     {
-        return DB::connection()->getDoctrineSchemaManager();
+        return self::getDatabaseConnection()->createSchemaManager();
     }
 
     public static function getDatabaseConnection()
     {
-        return DB::connection()->getDoctrineConnection();
+        // 1. Establish the connection
+        $connectionParams = [
+            'dbname'   => DB::connection()->getConfig()['database'],
+            'user'     => DB::connection()->getConfig()['username'],
+            'password' => DB::connection()->getConfig()['password'],
+            'host'     => DB::connection()->getConfig()['host'],
+            'driver'   => 'pdo_mysql',
+        ];
+        return DriverManager::getConnection($connectionParams);
     }
 
     public static function tableExists($table)
@@ -47,7 +57,7 @@ abstract class SchemaManager
     }
 
     /**
-     * @param string $tableName
+     * @param  string  $tableName
      *
      * @return \TCG\Voyager\Database\Schema\Table
      */
@@ -56,7 +66,7 @@ abstract class SchemaManager
         $columns = static::manager()->listTableColumns($tableName);
 
         $foreignKeys = [];
-        if (static::manager()->getDatabasePlatform()->supportsForeignKeyConstraints()) {
+        if (DB::connection()->getDatabasePlatform()->supportsForeignKeyConstraints()) {
             $foreignKeys = static::manager()->listTableForeignKeys($tableName);
         }
 
@@ -68,7 +78,7 @@ abstract class SchemaManager
     /**
      * Describes given table.
      *
-     * @param string $tableName
+     * @param  string  $tableName
      *
      * @return \Illuminate\Support\Collection
      */

@@ -54,7 +54,7 @@ class VoyagerServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->app->register(VoyagerEventServiceProvider::class);        
+        $this->app->register(VoyagerEventServiceProvider::class);
         $this->app->register(VoyagerDummyServiceProvider::class);
 
         $loader = AliasLoader::getInstance();
