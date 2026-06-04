@@ -81,8 +81,12 @@ abstract class Type extends DoctrineType
             return;
         }
 
+        /**
+         * @var \Doctrine\DBAL\Platforms\MySQL84Platform $platform
+         */
         $platform = SchemaManager::getDatabasePlatform();
-        $platformName = ucfirst($platform->getName());
+
+        $platformName = ucfirst('mysql');
 
         $customTypes = array_merge(
             static::getPlatformCustomTypes('Common'),
