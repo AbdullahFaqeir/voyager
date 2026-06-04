@@ -20,7 +20,7 @@
   ],
   "require": {
     "php": "^8.4",
-    "illuminate/support": "~11.0|~12.0|~13.0",
+    "illuminate/support": "~12.0|~13.0",
     "intervention/image": "^4.0",
     "doctrine/dbal": "^4.4",
     "laravel/ui": "^4.6",
@@ -31,7 +31,7 @@
   "require-dev": {
     "phpunit/phpcov": "^13.0",
     "phpunit/phpunit": "^13.1",
-    "laravel/framework": "~11.0|~12.0|~13.0",
+    "laravel/framework": "~12.0|~13.0",
     "orchestra/testbench": "^11.1",
     "laravel/browser-kit-testing": "^7.2",
     "orchestra/testbench-browser-kit": "^11.0"
