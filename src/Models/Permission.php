@@ -25,6 +25,6 @@ class Permission extends Model
 
     public static function removeFrom($table_name)
     {
-        self::where(['table_name' => $table_name])->delete();
+        self::query()->where(['table_name' => $table_name])->delete();
     }
 }

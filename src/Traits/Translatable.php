@@ -141,7 +141,7 @@ trait Translatable
         return $value;
     }
 
-    public function getTranslationsOf($attribute, array $languages = null, $fallback = true)
+    public function getTranslationsOf($attribute, ?array $languages = null, $fallback = true)
     {
         if (is_null($languages)) {
             $languages = config('voyager.multilingual.locales', [config('voyager.multilingual.default')]);
@@ -254,7 +254,7 @@ trait Translatable
     /**
      * Get entries filtered by translated value.
      *
-     * @example  Class::whereTranslation('title', '=', 'zuhause', ['de', 'iu'])
+     * @example  Class::query()->whereTranslation('title', '=', 'zuhause', ['de', 'iu'])
      * @example  $query->whereTranslation('title', '=', 'zuhause', ['de', 'iu'])
      *
      * @param string       $field    {required} the field your looking to find a value in.
@@ -280,7 +280,7 @@ trait Translatable
 
         return $query->whereIn(
             $self->getKeyName(),
-            Translation::where('table_name', $table)
+            Translation::query()->where('table_name', $table)
             ->where('column_name', $field)
             ->where('value', $operator, $value)
             ->when(!is_null($locales), function ($query) use ($locales) {

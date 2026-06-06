@@ -84,12 +84,15 @@ class Table extends DoctrineTable
 
     public function diff(DoctrineTable $compareTable)
     {
-        return (new Comparator())->diffTable($this, $compareTable);
+        return SchemaManager::manager()->createComparator()->compareTables($this, $compareTable);
     }
 
     public function diffOriginal()
     {
-        return (new Comparator())->diffTable(SchemaManager::getDoctrineTable($this->_name), $this);
+        return SchemaManager::manager()->createComparator()->compareTables(
+            SchemaManager::getDoctrineTable($this->_name),
+            $this
+        );
     }
 
     /**

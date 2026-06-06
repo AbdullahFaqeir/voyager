@@ -2,6 +2,7 @@
 
 namespace TCG\Voyager\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -72,14 +73,18 @@ class DataType extends Model
         return $this->hasMany(Voyager::modelClass('DataRow'))->orderBy('order', 'DESC')->first();
     }
 
-    public function setGeneratePermissionsAttribute($value)
+    protected function generatePermissions(): Attribute
     {
-        $this->attributes['generate_permissions'] = $value ? 1 : 0;
+        return Attribute::make(
+            set: fn ($value) => $value ? 1 : 0,
+        );
     }
 
-    public function setServerSideAttribute($value)
+    protected function serverSide(): Attribute
     {
-        $this->attributes['server_side'] = $value ? 1 : 0;
+        return Attribute::make(
+            set: fn ($value) => $value ? 1 : 0,
+        );
     }
 
     public function updateDataType($requestData, $throw = false)
@@ -247,63 +252,51 @@ class DataType extends Model
         }
     }
 
-    public function setDetailsAttribute($value)
+    protected function details(): Attribute
     {
-        $this->attributes['details'] = json_encode($value);
+        return Attribute::make(
+            get: fn ($value) => json_decode(!empty($value) ? $value : '{}'),
+            set: fn ($value) => json_encode($value),
+        )->withoutObjectCaching();
     }
 
-    public function getDetailsAttribute($value)
+    protected function orderColumn(): Attribute
     {
-        return json_decode(!empty($value) ? $value : '{}');
+        return Attribute::make(
+            get: fn () => $this->details->order_column ?? null,
+            set: fn ($value) => ['details' => collect($this->details)->merge(['order_column' => $value])->toJson()],
+        )->withoutObjectCaching();
     }
 
-    public function getOrderColumnAttribute()
+    protected function orderDisplayColumn(): Attribute
     {
-        return $this->details->order_column ?? null;
+        return Attribute::make(
+            get: fn () => $this->details->order_display_column ?? null,
+            set: fn ($value) => ['details' => collect($this->details)->merge(['order_display_column' => $value])->toJson()],
+        )->withoutObjectCaching();
     }
 
-    public function setOrderColumnAttribute($value)
+    protected function defaultSearchKey(): Attribute
     {
-        $this->attributes['details'] = collect($this->details)->merge(['order_column' => $value]);
+        return Attribute::make(
+            get: fn () => $this->details->default_search_key ?? null,
+            set: fn ($value) => ['details' => collect($this->details)->merge(['default_search_key' => $value])->toJson()],
+        )->withoutObjectCaching();
     }
 
-    public function getOrderDisplayColumnAttribute()
+    protected function orderDirection(): Attribute
     {
-        return $this->details->order_display_column ?? null;
+        return Attribute::make(
+            get: fn () => $this->details->order_direction ?? 'desc',
+            set: fn ($value) => ['details' => collect($this->details)->merge(['order_direction' => $value])->toJson()],
+        )->withoutObjectCaching();
     }
 
-    public function setOrderDisplayColumnAttribute($value)
+    protected function scope(): Attribute
     {
-        $this->attributes['details'] = collect($this->details)->merge(['order_display_column' => $value]);
-    }
-
-    public function getDefaultSearchKeyAttribute()
-    {
-        return $this->details->default_search_key ?? null;
-    }
-
-    public function setDefaultSearchKeyAttribute($value)
-    {
-        $this->attributes['details'] = collect($this->details)->merge(['default_search_key' => $value]);
-    }
-
-    public function getOrderDirectionAttribute()
-    {
-        return $this->details->order_direction ?? 'desc';
-    }
-
-    public function setOrderDirectionAttribute($value)
-    {
-        $this->attributes['details'] = collect($this->details)->merge(['order_direction' => $value]);
-    }
-
-    public function getScopeAttribute()
-    {
-        return $this->details->scope ?? null;
-    }
-
-    public function setScopeAttribute($value)
-    {
-        $this->attributes['details'] = collect($this->details)->merge(['scope' => $value]);
+        return Attribute::make(
+            get: fn () => $this->details->scope ?? null,
+            set: fn ($value) => ['details' => collect($this->details)->merge(['scope' => $value])->toJson()],
+        )->withoutObjectCaching();
     }
 }

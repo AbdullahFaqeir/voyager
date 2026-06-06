@@ -2,28 +2,29 @@
 
 namespace TCG\Voyager\Tests;
 
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use TCG\Voyager\Models\Page;
+use TCG\Voyager\Models\DataType;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Storage;
 use TCG\Voyager\Events\BreadAdded;
-use TCG\Voyager\Events\BreadDataAdded;
-use TCG\Voyager\Events\BreadDataDeleted;
-use TCG\Voyager\Events\BreadDataUpdated;
-use TCG\Voyager\Events\BreadDeleted;
-use TCG\Voyager\Events\BreadImagesDeleted;
-use TCG\Voyager\Events\BreadUpdated;
-use TCG\Voyager\Events\FileDeleted;
-use TCG\Voyager\Events\MediaFileAdded;
 use TCG\Voyager\Events\TableAdded;
+use TCG\Voyager\Events\FileDeleted;
+use Illuminate\Support\Facades\Auth;
+use TCG\Voyager\Events\BreadDeleted;
+use TCG\Voyager\Events\BreadUpdated;
 use TCG\Voyager\Events\TableDeleted;
 use TCG\Voyager\Events\TableUpdated;
-use TCG\Voyager\Models\DataType;
-use TCG\Voyager\Models\Page;
+use Illuminate\Support\Facades\Event;
+use TCG\Voyager\Events\BreadDataAdded;
+use TCG\Voyager\Events\MediaFileAdded;
+use Illuminate\Support\Facades\Storage;
+use TCG\Voyager\Events\BreadDataDeleted;
+use TCG\Voyager\Events\BreadDataUpdated;
+use TCG\Voyager\Events\BreadImagesDeleted;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 
 class EventTest extends TestCase
 {
+
     use DatabaseTransactions;
 
     public function testBreadAddedEvent()
@@ -41,12 +42,7 @@ class EventTest extends TestCase
         ]);
 
         Event::assertDispatched(BreadAdded::class, function ($event) {
-            return $event->dataType->name === 'Toast'
-                || $event->dataType->slug === 'toast'
-                || $event->dataType->display_name_singular === 'toast'
-                || $event->dataType->display_name_plural === 'toasts'
-                || $event->dataType->icon === 'fa fa-toast'
-                || $event->dataType->description === 'This is a toast';
+            return $event->dataType->name === 'Toast' || $event->dataType->slug === 'toast' || $event->dataType->display_name_singular === 'toast' || $event->dataType->display_name_plural === 'toasts' || $event->dataType->icon === 'fa fa-toast' || $event->dataType->description === 'This is a toast';
         });
     }
 
@@ -77,12 +73,7 @@ class EventTest extends TestCase
         ]);
 
         Event::assertDispatched(BreadUpdated::class, function ($event) {
-            return $event->dataType->name === 'Test'
-                || $event->dataType->slug === 'test'
-                || $event->dataType->display_name_singular === 'test'
-                || $event->dataType->display_name_plural === 'tests'
-                || $event->dataType->icon === 'fa fa-test'
-                || $event->dataType->description === 'This is a test';
+            return $event->dataType->name === 'Test' || $event->dataType->slug === 'test' || $event->dataType->display_name_singular === 'test' || $event->dataType->display_name_plural === 'tests' || $event->dataType->icon === 'fa fa-test' || $event->dataType->description === 'This is a test';
         });
     }
 
@@ -228,8 +219,8 @@ class EventTest extends TestCase
 
         $this->post(route('voyager.database.store'), [
             'table' => [
-                'name'    => 'test',
-                'columns' => [
+                'name'        => 'test',
+                'columns'     => [
                     [
                         'name' => 'id',
                         'type' => [
@@ -253,8 +244,8 @@ class EventTest extends TestCase
 
         $this->post(route('voyager.database.store'), [
             'table' => [
-                'name'    => 'test',
-                'columns' => [
+                'name'        => 'test',
+                'columns'     => [
                     [
                         'name' => 'id',
                         'type' => [
@@ -272,9 +263,9 @@ class EventTest extends TestCase
 
         $this->put(route('voyager.database.update', ['test']), [
             'table' => json_encode([
-                'name'    => 'test',
-                'oldName' => 'test',
-                'columns' => [
+                'name'        => 'test',
+                'oldName'     => 'test',
+                'columns'     => [
                     [
                         'name'    => 'id',
                         'oldName' => 'id',
@@ -299,8 +290,8 @@ class EventTest extends TestCase
 
         $this->post(route('voyager.database.store'), [
             'table' => [
-                'name'    => 'test',
-                'columns' => [
+                'name'        => 'test',
+                'columns'     => [
                     [
                         'name' => 'id',
                         'type' => [
@@ -329,7 +320,7 @@ class EventTest extends TestCase
 
         $image = UploadedFile::fake()->image('test.png');
 
-        $this->json('POST', route('voyager.media.upload'), ['file'=>$image, 'upload_path' => '/']);
+        $this->json('POST', route('voyager.media.upload'), ['file' => $image, 'upload_path' => '/']);
 
         // Ensure file exists on disk
         $this->assertFileExists(public_path('storage/'.$image->name));
@@ -345,7 +336,7 @@ class EventTest extends TestCase
 
         $image = UploadedFile::fake()->image('test.png');
 
-        $this->json('POST', route('voyager.media.upload'), ['file'=>$image, 'upload_path' => '/nested/']);
+        $this->json('POST', route('voyager.media.upload'), ['file' => $image, 'upload_path' => '/nested/']);
 
         // Ensure file exists on disk
         $this->assertFileExists(public_path('storage/nested/'.$image->name));
@@ -355,6 +346,7 @@ class EventTest extends TestCase
 
     public function tearDown(): void
     {
+        parent::tearDown();
         if (file_exists(public_path('storage/test.png'))) {
             unlink(public_path('storage/test.png'));
         }

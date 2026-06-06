@@ -82,7 +82,7 @@ class SearchTest extends TestCase
         $post->author_id = $user->id;
         $post->save();
 
-        $other_user = factory(User::class)->create(['name' => 'Admin 2']);
+        $other_user = User::factory()->create(['name' => 'Admin 2']);
         $other_post = $posts->last();
         $other_post->author_id = $other_user->id;
         $other_post->save();

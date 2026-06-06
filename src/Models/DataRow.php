@@ -2,6 +2,7 @@
 
 namespace TCG\Voyager\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use TCG\Voyager\Traits\Translatable;
 
@@ -19,7 +20,7 @@ class DataRow extends Model
 
     public function rowBefore()
     {
-        $previous = self::where('data_type_id', '=', $this->data_type_id)->where('order', '=', ($this->order - 1))->first();
+        $previous = self::query()->where('data_type_id', '=', $this->data_type_id)->where('order', '=', ($this->order - 1))->first();
         if (isset($previous->id)) {
             return $previous->field;
         }
@@ -58,16 +59,14 @@ class DataRow extends Model
         }
         $params['order_by'] = $this->field;
 
-        return url()->current().'?'.http_build_query(array_merge(\Request::all(), $params));
+        return url()->current().'?'.http_build_query(array_merge(request()->all(), $params));
     }
 
-    public function setDetailsAttribute($value)
+    protected function details(): Attribute
     {
-        $this->attributes['details'] = json_encode($value);
-    }
-
-    public function getDetailsAttribute($value)
-    {
-        return json_decode(!empty($value) ? $value : '{}');
+        return Attribute::make(
+            get: fn ($value) => json_decode(!empty($value) ? $value : '{}'),
+            set: fn ($value) => json_encode($value),
+        )->withoutObjectCaching();
     }
 }

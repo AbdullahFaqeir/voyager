@@ -219,7 +219,7 @@ class FormfieldsTest extends TestCase
     public function testFormfieldDate()
     {
         $this->createBreadForFormfield('date', 'date', json_encode([
-            'format' => '%Y-%m-%d',
+            'format' => 'YYYY-MM-DD',
         ]));
 
         $this->visitRoute('voyager.categories.create')
@@ -238,7 +238,7 @@ class FormfieldsTest extends TestCase
     public function testFormfieldTimestamp()
     {
         $this->createBreadForFormfield('timestamp', 'timestamp', json_encode([
-            'format' => '%F %T',
+            'format' => 'YYYY-MM-DD HH:mm:ss',
         ]));
 
         $this->visitRoute('voyager.categories.create')

@@ -2,15 +2,16 @@
 
 namespace TCG\Voyager\Tests;
 
+use TCG\Voyager\Models\Page;
+use TCG\Voyager\Models\DataRow;
+use TCG\Voyager\Models\DataType;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use TCG\Voyager\Models\DataRow;
-use TCG\Voyager\Models\DataType;
-use TCG\Voyager\Models\Page;
 
 class BreadMediaUploadTest extends TestCase
 {
+
     protected $file = 'test.txt';
     protected $file_two = 'test2.txt';
     protected $file_three = 'test.pdf';
@@ -53,11 +54,11 @@ class BreadMediaUploadTest extends TestCase
         $files = json_decode($page->image, true);
 
         $response = $this->post(route('voyager.pages.media.remove'), [
-            'id'        => $page->id,
-            'slug'      => 'pages',
-            'field'     => 'image',
-            'multi'     => 'true',
-            'filename'  => $files[1],
+            'id'       => $page->id,
+            'slug'     => 'pages',
+            'field'    => 'image',
+            'multi'    => 'true',
+            'filename' => $files[1],
         ]);
 
         $this->storage->assertExists($files[0]);
@@ -102,11 +103,11 @@ class BreadMediaUploadTest extends TestCase
         $page = $this->uploadMedia([$this->image_one], 'image', json_decode($this->details));
 
         $response = $this->post(route('voyager.pages.media.remove'), [
-            'id'        => $page->id,
-            'slug'      => 'pages',
-            'field'     => 'image',
-            'multi'     => 'false',
-            'filename'  => $page->image,
+            'id'       => $page->id,
+            'slug'     => 'pages',
+            'field'    => 'image',
+            'multi'    => 'false',
+            'filename' => $page->image,
         ]);
 
         $details = json_decode($this->details);
@@ -162,11 +163,11 @@ class BreadMediaUploadTest extends TestCase
         $files = json_decode($page->image, true);
 
         $response = $this->post(route('voyager.pages.media.remove'), [
-            'id'        => $page->id,
-            'slug'      => 'pages',
-            'field'     => 'image',
-            'multi'     => 'true',
-            'filename'  => $files[1],
+            'id'       => $page->id,
+            'slug'     => 'pages',
+            'field'    => 'image',
+            'multi'    => 'true',
+            'filename' => $files[1],
         ]);
 
         $details = json_decode($this->details);
@@ -223,11 +224,11 @@ class BreadMediaUploadTest extends TestCase
         $file = json_decode($page->image, true);
 
         $this->call('POST', route('voyager.pages.media.remove'), [
-            'id'        => $page->id,
-            'slug'      => 'pages',
-            'field'     => 'image',
-            'multi'     => 'true',
-            'filename'  => $file[0]['original_name'],
+            'id'       => $page->id,
+            'slug'     => 'pages',
+            'field'    => 'image',
+            'multi'    => 'true',
+            'filename' => $file[0]['original_name'],
         ]);
 
         $this->storage->assertMissing($file[0]['download_link']);
@@ -304,11 +305,11 @@ class BreadMediaUploadTest extends TestCase
         $page = $this->uploadMedia([$this->image_one], 'image');
 
         $response = $this->post(route('voyager.pages.media.remove'), [
-            'id'        => $page->id,
-            'slug'      => 'pages',
-            'field'     => 'image',
-            'multi'     => 'false',
-            'filename'  => $page->image,
+            'id'       => $page->id,
+            'slug'     => 'pages',
+            'field'    => 'image',
+            'multi'    => 'false',
+            'filename' => $page->image,
         ]);
 
         $this->storage->assertMissing($page->image);
@@ -364,8 +365,7 @@ class BreadMediaUploadTest extends TestCase
             'image' => $file,
         ]);
 
-        $page = Page::where('slug', 'upload-media')->first();
 
-        return $page;
+        return Page::query()->where('slug', 'upload-media')->first();
     }
 }

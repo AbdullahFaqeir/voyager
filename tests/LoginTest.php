@@ -53,6 +53,9 @@ class LoginTest extends TestCase
 
     public function testGetsLockedOutAfterFiveAttempts()
     {
+        // Freeze time so the rate limiter always reports exactly 60 seconds
+        \Illuminate\Support\Carbon::setTestNow(now());
+
         session()->setPreviousUrl(route('voyager.login'));
 
         for ($i = 0; $i <= 5; $i++) {
@@ -63,5 +66,7 @@ class LoginTest extends TestCase
         }
 
         $t->see(__('auth.throttle', ['seconds' => 60]));
+
+        \Illuminate\Support\Carbon::setTestNow();
     }
 }

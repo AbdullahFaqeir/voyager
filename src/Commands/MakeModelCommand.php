@@ -23,10 +23,8 @@ class MakeModelCommand extends ModelMakeCommand
 
     /**
      * Get the stub file for the generator.
-     *
-     * @return string
      */
-    protected function getStub()
+    protected function getStub(): string
     {
         return __DIR__.'/../../stubs/model.stub';
     }
@@ -35,10 +33,8 @@ class MakeModelCommand extends ModelMakeCommand
      * Build the class with the given name.
      *
      * @param string $name
-     *
-     * @return string
      */
-    protected function buildClass($name)
+    protected function buildClass($name): string
     {
         $stub = $this->files->get($this->getStub());
 
@@ -52,7 +48,7 @@ class MakeModelCommand extends ModelMakeCommand
      *
      * @return $this
      */
-    protected function addSoftDelete(&$stub)
+    protected function addSoftDelete(&$stub): static
     {
         $traitIncl = $trait = '';
 
@@ -69,10 +65,8 @@ class MakeModelCommand extends ModelMakeCommand
 
     /**
      * Get the console command options.
-     *
-     * @return array
      */
-    protected function getOptions()
+    protected function getOptions(): array
     {
         $options = [
             ['softdelete', 'd', InputOption::VALUE_NONE, 'Add soft-delete field to Model'],

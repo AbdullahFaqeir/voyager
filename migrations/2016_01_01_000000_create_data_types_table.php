@@ -1,16 +1,17 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 
-class CreateDataTypesTable extends Migration
+return new class() extends Migration
 {
     /**
      * Run the migrations.
      *
      * @return void
      */
-    public function up()
+    public function up(): void
     {
         // Create table for storing roles
         Schema::create('data_types', function (Blueprint $table) {
@@ -51,9 +52,9 @@ class CreateDataTypesTable extends Migration
      *
      * @return void
      */
-    public function down()
+    public function down(): void
     {
         Schema::drop('data_rows');
         Schema::drop('data_types');
     }
-}
+};

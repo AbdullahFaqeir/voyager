@@ -3,6 +3,7 @@
 namespace TCG\Voyager\FormFields;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 
 class MediaPickerHandler extends AbstractHandler
@@ -30,7 +31,7 @@ class MediaPickerHandler extends AbstractHandler
             $options->base_path = str_replace('{uid}', Auth::user()->getKey(), $options->base_path);
             if (Str::contains($options->base_path, '{date:')) {
                 $options->base_path = preg_replace_callback('/\{date:([^\/\}]*)\}/', function ($date) {
-                    return \Carbon\Carbon::now()->format($date[1]);
+                    return now()->format($date[1]);
                 }, $options->base_path);
             }
             if (Str::contains($options->base_path, '{random:')) {
@@ -41,8 +42,8 @@ class MediaPickerHandler extends AbstractHandler
             if (!$dataTypeContent->getKey()) {
                 $uuid = (string) Str::uuid();
                 $options->base_path = str_replace('{pk}', $uuid, $options->base_path);
-                \Session::put($dataType->slug.'_path', $options->base_path);
-                \Session::put($dataType->slug.'_uuid', $uuid);
+                Session::put($dataType->slug.'_path', $options->base_path);
+                Session::put($dataType->slug.'_uuid', $uuid);
             } else {
                 $options->base_path = str_replace('{pk}', $dataTypeContent->getKey(), $options->base_path);
             }

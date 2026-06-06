@@ -2,6 +2,7 @@
 
 namespace TCG\Voyager\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Route;
 use TCG\Voyager\Facades\Voyager;
@@ -21,19 +22,17 @@ class MenuItem extends Model
 
     protected $translatable = ['title'];
 
-    public static function boot()
+    protected static function booted(): void
     {
-        parent::boot();
-
-        static::created(function ($model) {
+        static::created(function (self $model) {
             $model->menu->removeMenuFromCache();
         });
 
-        static::saved(function ($model) {
+        static::saved(function (self $model) {
             $model->menu->removeMenuFromCache();
         });
 
-        static::deleted(function ($model) {
+        static::deleted(function (self $model) {
             $model->menu->removeMenuFromCache();
         });
     }
@@ -88,27 +87,19 @@ class MenuItem extends Model
         return $url;
     }
 
-    public function getParametersAttribute()
+    protected function parameters(): Attribute
     {
-        return json_decode($this->attributes['parameters'] ?? '');
+        return Attribute::make(
+            get: fn ($value) => json_decode($value ?? ''),
+            set: fn ($value) => is_array($value) ? json_encode($value) : $value,
+        )->withoutObjectCaching();
     }
 
-    public function setParametersAttribute($value)
+    protected function url(): Attribute
     {
-        if (is_array($value)) {
-            $value = json_encode($value);
-        }
-
-        $this->attributes['parameters'] = $value;
-    }
-
-    public function setUrlAttribute($value)
-    {
-        if (is_null($value)) {
-            $value = '';
-        }
-
-        $this->attributes['url'] = $value;
+        return Attribute::make(
+            set: fn ($value) => $value ?? '',
+        );
     }
 
     /**

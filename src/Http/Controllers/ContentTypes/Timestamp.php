@@ -2,7 +2,7 @@
 
 namespace TCG\Voyager\Http\Controllers\ContentTypes;
 
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 
 class Timestamp extends BaseType
 {

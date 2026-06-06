@@ -3,7 +3,9 @@
 namespace TCG\Voyager\Database;
 
 use Doctrine\DBAL\Schema\Column;
-use Doctrine\DBAL\Schema\SchemaException;
+use Doctrine\DBAL\Schema\ColumnDiff;
+use Doctrine\DBAL\Schema\Exception\TableAlreadyExists;
+use Doctrine\DBAL\Schema\Exception\TableDoesNotExist;
 use Doctrine\DBAL\Schema\TableDiff;
 use TCG\Voyager\Database\Schema\SchemaManager;
 use TCG\Voyager\Database\Schema\Table;
@@ -36,7 +38,7 @@ class DatabaseUpdater
         }
 
         if (!SchemaManager::tableExists($table['oldName'])) {
-            throw SchemaException::tableDoesNotExist($table['oldName']);
+            throw TableDoesNotExist::new($table['oldName']);
         }
 
         $updater = new self($table);
@@ -55,7 +57,7 @@ class DatabaseUpdater
         if (($newName = $this->table->getName()) != $this->originalTable->getName()) {
             // Make sure the new name doesn't already exist
             if (SchemaManager::tableExists($newName)) {
-                throw SchemaException::tableAlreadyExists($newName);
+                throw TableAlreadyExists::new($newName);
             }
         } else {
             $newName = false;
@@ -71,19 +73,14 @@ class DatabaseUpdater
 
         $tableDiff = $this->originalTable->diff($this->table);
 
-        // Add new table name to tableDiff
-        if ($newName) {
-            if (!$tableDiff) {
-                $tableDiff = new TableDiff($this->tableArr['oldName']);
-                $tableDiff->fromTable = $this->originalTable;
-            }
-
-            $tableDiff->newName = $newName;
+        // Update the table
+        if (!$tableDiff->isEmpty()) {
+            SchemaManager::alterTable($tableDiff);
         }
 
-        // Update the table
-        if ($tableDiff) {
-            SchemaManager::alterTable($tableDiff);
+        // Rename the table last - DBAL 4 table diffs no longer carry a new name
+        if ($newName) {
+            SchemaManager::renameTable($this->tableArr['oldName'], $newName);
         }
     }
 
@@ -100,14 +97,16 @@ class DatabaseUpdater
             return false;
         }
 
-        $renamedColumnsDiff = new TableDiff($this->tableArr['oldName']);
-        $renamedColumnsDiff->fromTable = $this->originalTable;
+        $changedColumns = [];
 
         foreach ($renamedColumns as $oldName => $newName) {
-            $renamedColumnsDiff->renamedColumns[$oldName] = $this->table->getColumn($newName);
+            $changedColumns[] = new ColumnDiff(
+                $this->originalTable->getColumn($oldName),
+                $this->table->getColumn($newName)
+            );
         }
 
-        return $renamedColumnsDiff;
+        return new TableDiff($this->originalTable, changedColumns: $changedColumns);
     }
 
     /**
@@ -124,18 +123,24 @@ class DatabaseUpdater
             return false;
         }
 
-        $renamedDiff = new TableDiff($this->tableArr['oldName']);
-        $renamedDiff->fromTable = $this->originalTable;
-
+        $changedColumns = [];
         foreach ($renamedColumns as $oldName => $newName) {
-            $renamedDiff->renamedColumns[$oldName] = $this->table->getColumn($newName);
+            $changedColumns[] = new ColumnDiff(
+                $this->originalTable->getColumn($oldName),
+                $this->table->getColumn($newName)
+            );
         }
 
+        $renamedIndexObjects = [];
         foreach ($renamedIndexes as $oldName => $newName) {
-            $renamedDiff->renamedIndexes[$oldName] = $this->table->getIndex($newName);
+            $renamedIndexObjects[$oldName] = $this->table->getIndex($newName);
         }
 
-        return $renamedDiff;
+        return new TableDiff(
+            $this->originalTable,
+            changedColumns: $changedColumns,
+            renamedIndexes: $renamedIndexObjects
+        );
     }
 
     /**

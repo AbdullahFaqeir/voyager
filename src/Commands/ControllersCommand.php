@@ -5,16 +5,16 @@ namespace TCG\Voyager\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
-use Symfony\Component\Console\Input\InputOption;
 
 class ControllersCommand extends Command
 {
     /**
-     * The console command name.
+     * The name and signature of the console command.
      *
      * @var string
      */
-    protected $name = 'voyager:controllers';
+    protected $signature = 'voyager:controllers
+                            {--f|force : Overwrite existing controller files}';
 
     /**
      * The console command description.
@@ -22,13 +22,6 @@ class ControllersCommand extends Command
      * @var string
      */
     protected $description = 'Publish all the controllers from Voyager.';
-
-    /**
-     * The Filesystem instance.
-     *
-     * @var Filesystem
-     */
-    protected $filesystem;
 
     /**
      * Filename of stub-file.
@@ -39,27 +32,16 @@ class ControllersCommand extends Command
 
     /**
      * Create a new command instance.
-     *
-     * @param Filesystem $filesystem
      */
-    public function __construct(Filesystem $filesystem)
+    public function __construct(protected Filesystem $filesystem)
     {
-        $this->filesystem = $filesystem;
-
         parent::__construct();
-    }
-
-    public function fire()
-    {
-        return $this->handle();
     }
 
     /**
      * Execute the console command.
-     *
-     * @return void
      */
-    public function handle()
+    public function handle(): int
     {
         $stub = $this->getStub();
         $files = $this->filesystem->files(base_path('vendor/tcg/voyager/src/Http/Controllers'));
@@ -68,7 +50,9 @@ class ControllersCommand extends Command
         $appNamespace = app()->getNamespace();
 
         if (!Str::startsWith($namespace, $appNamespace)) {
-            return $this->error('The controllers namespace must start with your application namespace: '.$appNamespace);
+            $this->error('The controllers namespace must start with your application namespace: '.$appNamespace);
+
+            return self::FAILURE;
         }
 
         $location = str_replace('\\', DIRECTORY_SEPARATOR, substr($namespace, strlen($appNamespace)));
@@ -87,7 +71,7 @@ class ControllersCommand extends Command
 
             $path = app_path($location.DIRECTORY_SEPARATOR.$filename);
 
-            if (!$this->filesystem->exists($path) or $this->option('force')) {
+            if (!$this->filesystem->exists($path) || $this->option('force')) {
                 $class = substr($filename, 0, strpos($filename, '.'));
                 $content = $this->generateContent($stub, $class);
                 $this->filesystem->put($path, $content);
@@ -95,66 +79,29 @@ class ControllersCommand extends Command
         }
 
         $this->info('Published Voyager controllers!');
+
+        return self::SUCCESS;
     }
 
     /**
      * Get stub content.
-     *
-     * @return string
      */
-    public function getStub()
+    public function getStub(): string
     {
         return $this->filesystem->get(base_path('/vendor/tcg/voyager/stubs/'.$this->stub));
     }
 
     /**
      * Generate real content from stub.
-     *
-     * @param $stub
-     * @param $class
-     *
-     * @return mixed
      */
-    protected function generateContent($stub, $class)
+    protected function generateContent(string $stub, string $class): string
     {
         $namespace = config('voyager.controllers.namespace', 'TCG\\Voyager\\Http\\Controllers');
 
-        $content = str_replace(
-            'DummyNamespace',
-            $namespace,
+        return str_replace(
+            ['DummyNamespace', 'FullBaseDummyClass', 'BaseDummyClass', 'DummyClass'],
+            [$namespace, 'TCG\\Voyager\\Http\\Controllers\\'.$class, 'Base'.$class, $class],
             $stub
         );
-
-        $content = str_replace(
-            'FullBaseDummyClass',
-            'TCG\\Voyager\\Http\\Controllers\\'.$class,
-            $content
-        );
-
-        $content = str_replace(
-            'BaseDummyClass',
-            'Base'.$class,
-            $content
-        );
-
-        $content = str_replace(
-            'DummyClass',
-            $class,
-            $content
-        );
-
-        return $content;
-    }
-
-    /**
-     * Get command options.
-     *
-     * @return array
-     */
-    protected function getOptions()
-    {
-        return [
-            ['force', 'f', InputOption::VALUE_NONE, 'Overwrite existing controller files'],
-        ];
     }
 }

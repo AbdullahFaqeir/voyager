@@ -3,16 +3,19 @@
 namespace TCG\Voyager\Http\Controllers;
 
 use Exception;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Intervention\Image\Facades\Image;
-use TCG\Voyager\Events\MediaFileAdded;
+use Illuminate\Http\Request;
 use TCG\Voyager\Facades\Voyager;
+use Illuminate\Support\Facades\Auth;
+use TCG\Voyager\Events\MediaFileAdded;
+use Illuminate\Support\Facades\Storage;
+use TCG\Voyager\Image\InterventionImageFactory;
+use Intervention\Image\Encoders\FileExtensionEncoder;
+use League\MimeTypeDetection\ExtensionMimeTypeDetector;
 
 class VoyagerMediaController extends Controller
 {
+
     /** @var string */
     private $filesystem;
 
@@ -53,13 +56,8 @@ class VoyagerMediaController extends Controller
         $dir = $this->directory.$folder;
 
         $files = [];
-        if (class_exists(\League\Flysystem\Plugin\ListWith::class)) {
-            $storage = Storage::disk($this->filesystem)->addPlugin(new \League\Flysystem\Plugin\ListWith());
-            $storageItems = $storage->listWith(['mimetype'], $dir);
-        } else {
-            $storage = Storage::disk($this->filesystem);
-            $storageItems = $storage->listContents($dir)->sortByPath()->toArray();
-        }
+        $storage = Storage::disk($this->filesystem);
+        $storageItems = $storage->listContents($dir)->sortByPath()->toArray();
 
         foreach ($storageItems as $item) {
             if ($item['type'] == 'dir') {
@@ -81,12 +79,15 @@ class VoyagerMediaController extends Controller
                     continue;
                 }
                 $mime = 'file';
-                if (class_exists(\League\MimeTypeDetection\ExtensionMimeTypeDetector::class)) {
-                    $mime = (new \League\MimeTypeDetection\ExtensionMimeTypeDetector())->detectMimeTypeFromFile($item['path']);
+                if (class_exists(ExtensionMimeTypeDetector::class)) {
+                    $mime = (new ExtensionMimeTypeDetector())->detectMimeTypeFromFile($item['path']);
                 }
                 $files[] = [
                     'name'          => $item['basename'] ?? basename($item['path']),
-                    'filename'      => $item['filename'] ?? basename($item['path'], '.'.pathinfo($item['path'])['extension']),
+                    'filename'      => $item['filename'] ?? basename(
+                            $item['path'],
+                            '.'.pathinfo($item['path'])['extension']
+                        ),
                     'type'          => $item['mimetype'] ?? $mime,
                     'path'          => Storage::disk($this->filesystem)->url($item['path']),
                     'relative_path' => $item['path'],
@@ -161,7 +162,7 @@ class VoyagerMediaController extends Controller
         $this->authorize('browse_media');
         $path = str_replace('//', '/', Str::finish($request->path, '/'));
         $dest = str_replace('//', '/', Str::finish($request->destination, '/'));
-        if (strpos($dest, '/../') !== false) {
+        if (str_contains($dest, '/../')) {
             $dest = substr($path, 0, -1);
             $dest = substr($dest, 0, strripos($dest, '/') + 1);
         }
@@ -176,7 +177,7 @@ class VoyagerMediaController extends Controller
 
             try {
                 Storage::disk($this->filesystem)->move($old_path, $new_path);
-            } catch (\Exception $ex) {
+            } catch (Exception $ex) {
                 $success = false;
                 $error = $ex->getMessage();
 
@@ -235,19 +236,25 @@ class VoyagerMediaController extends Controller
             $realPath = Storage::disk($this->filesystem)->path('/');
 
             $allowedMimeTypes = config('voyager.media.allowed_mimetypes', '*');
-            if ($allowedMimeTypes != '*' && (is_array($allowedMimeTypes) && !in_array($request->file->getMimeType(), $allowedMimeTypes))) {
+            if ($allowedMimeTypes != '*' && (is_array($allowedMimeTypes) && !in_array(
+                        $request->file->getMimeType(),
+                        $allowedMimeTypes
+                    ))) {
                 throw new Exception(__('voyager::generic.mimetype_not_allowed'));
             }
 
             if (!$request->has('filename') || $request->get('filename') == 'null') {
-                while (Storage::disk($this->filesystem)->exists(Str::finish($request->upload_path, '/').$name.'.'.$extension, $this->filesystem)) {
+                while (Storage::disk($this->filesystem)->exists(
+                    Str::finish($request->upload_path, '/').$name.'.'.$extension,
+                    $this->filesystem
+                )) {
                     $name = get_file_name($name);
                 }
             } else {
                 $name = str_replace('{uid}', Auth::user()->getKey(), $request->get('filename'));
                 if (Str::contains($name, '{date:')) {
                     $name = preg_replace_callback('/\{date:([^\/\}]*)\}/', function ($date) {
-                        return \Carbon\Carbon::now()->format($date[1]);
+                        return now()->format($date[1]);
                     }, $name);
                 }
                 if (Str::contains($name, '{random:')) {
@@ -269,62 +276,57 @@ class VoyagerMediaController extends Controller
             ];
             if (in_array($request->file->getMimeType(), $imageMimeTypes)) {
                 $content = Storage::disk($this->filesystem)->get($file);
-                $image = Image::make($content);
+                $image = InterventionImageFactory::decode($content);
+                $encoder = new FileExtensionEncoder($extension, quality: ($details->quality ?? 90));
 
                 if ($request->file->getClientOriginalExtension() == 'gif') {
                     copy($request->file->getRealPath(), $realPath.$file);
                 } else {
-                    $image = $image->orientate();
                     // Generate thumbnails
                     if (property_exists($details, 'thumbnails') && is_array($details->thumbnails)) {
                         foreach ($details->thumbnails as $thumbnail_data) {
                             $type = $thumbnail_data->type ?? 'fit';
-                            $thumbnail = Image::make(clone $image);
+                            $thumbnail = InterventionImageFactory::decode($content);
                             if ($type == 'fit') {
-                                $thumbnail = $thumbnail->fit(
-                                    $thumbnail_data->width,
-                                    ($thumbnail_data->height ?? null),
-                                    function ($constraint) {
-                                        $constraint->aspectRatio();
-                                    },
+                                $thumbnail = $thumbnail->cover(
+                                    (int)$thumbnail_data->width,
+                                    (int)($thumbnail_data->height ?? $thumbnail_data->width),
                                     ($thumbnail_data->position ?? 'center')
                                 );
                             } elseif ($type == 'crop') {
                                 $thumbnail = $thumbnail->crop(
-                                    $thumbnail_data->width,
-                                    $thumbnail_data->height,
-                                    ($thumbnail_data->x ?? null),
-                                    ($thumbnail_data->y ?? null)
+                                    (int)$thumbnail_data->width,
+                                    (int)$thumbnail_data->height,
+                                    (int)($thumbnail_data->x ?? 0),
+                                    (int)($thumbnail_data->y ?? 0)
                                 );
                             } elseif ($type == 'resize') {
-                                $thumbnail = $thumbnail->resize(
-                                    $thumbnail_data->width,
-                                    ($thumbnail_data->height ?? null),
-                                    function ($constraint) use ($thumbnail_data) {
-                                        $constraint->aspectRatio();
-                                        if (!($thumbnail_data->upsize ?? true)) {
-                                            $constraint->upsize();
-                                        }
-                                    }
+                                $thumbnail = !($thumbnail_data->upsize ?? true) ? $thumbnail->scaleDown(
+                                    (int)$thumbnail_data->width,
+                                    isset($thumbnail_data->height) ? (int)$thumbnail_data->height : null
+                                ) : $thumbnail->scale(
+                                    (int)$thumbnail_data->width,
+                                    isset($thumbnail_data->height) ? (int)$thumbnail_data->height : null
                                 );
                             }
-                            if (
-                                property_exists($details, 'watermark') &&
-                                property_exists($details->watermark, 'source') &&
-                                property_exists($thumbnail_data, 'watermark') &&
-                                $thumbnail_data->watermark
-                            ) {
+                            if (property_exists($details, 'watermark') && property_exists(
+                                    $details->watermark,
+                                    'source'
+                                ) && property_exists($thumbnail_data, 'watermark') && $thumbnail_data->watermark) {
                                 $thumbnail = $this->addWatermarkToImage($thumbnail, $details->watermark);
                             }
                             $thumbnail_file = $request->upload_path.$name.'-'.($thumbnail_data->name ?? 'thumbnail').'.'.$extension;
-                            Storage::disk($this->filesystem)->put($thumbnail_file, $thumbnail->encode($extension, ($details->quality ?? 90))->encoded);
+                            Storage::disk($this->filesystem)->put(
+                                $thumbnail_file,
+                                $thumbnail->encode($encoder)->toString()
+                            );
                         }
                     }
                     // Add watermark to image
                     if (property_exists($details, 'watermark') && property_exists($details->watermark, 'source')) {
                         $image = $this->addWatermarkToImage($image, $details->watermark);
                     }
-                    Storage::disk($this->filesystem)->put($file, $image->encode($extension, ($details->quality ?? 90))->encoded);
+                    Storage::disk($this->filesystem)->put($file, $image->encode($encoder)->toString());
                 }
             }
 
@@ -370,8 +372,8 @@ class VoyagerMediaController extends Controller
             }
 
             $content = Storage::disk($this->filesystem)->get($originImagePath);
-            $image = Image::make($content)->crop($width, $height, $x, $y);
-            Storage::disk($this->filesystem)->put($destImagePath, $image->encode()->encoded);
+            $image = InterventionImageFactory::decode($content)->crop((int)$width, (int)$height, (int)$x, (int)$y);
+            Storage::disk($this->filesystem)->put($destImagePath, $image->encode()->toString());
 
             $success = true;
             $message = __('voyager::media.success_crop_image');
@@ -385,18 +387,16 @@ class VoyagerMediaController extends Controller
 
     private function addWatermarkToImage($image, $options)
     {
-        $watermark = Image::make(Storage::disk($this->filesystem)->path($options->source));
+        $watermark = InterventionImageFactory::decode(Storage::disk($this->filesystem)->path($options->source));
         // Resize watermark
-        $width = $image->width() * (($options->size ?? 15) / 100);
-        $watermark->resize($width, null, function ($constraint) {
-            $constraint->aspectRatio();
-        });
+        $width = (int)($image->width() * (($options->size ?? 15) / 100));
+        $watermark = $watermark->scale($width);
 
         return $image->insert(
             $watermark,
-            ($options->position ?? 'top-left'),
             ($options->x ?? 0),
-            ($options->y ?? 0)
+            ($options->y ?? 0),
+            ($options->position ?? 'top-left')
         );
     }
 }

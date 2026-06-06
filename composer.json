@@ -26,7 +26,8 @@
     "laravel/ui": "^4.6",
     "arrilot/laravel-widgets": "^3.15",
     "league/flysystem": "~3.34",
-    "ext-json": "*"
+    "ext-json": "*",
+    "ext-pdo": "*"
   },
   "require-dev": {
     "phpunit/phpcov": "^13.0",

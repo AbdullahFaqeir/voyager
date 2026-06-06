@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use TCG\Voyager\Events\Routing;
 use TCG\Voyager\Events\RoutingAdmin;
@@ -22,32 +23,52 @@ Route::group(['as' => 'voyager.'], function () {
 
     $namespacePrefix = '\\'.config('voyager.controllers.namespace').'\\';
 
-    Route::get('login', ['uses' => $namespacePrefix.'VoyagerAuthController@login',     'as' => 'login']);
-    Route::post('login', ['uses' => $namespacePrefix.'VoyagerAuthController@postLogin', 'as' => 'postlogin']);
+    $authController = $namespacePrefix.'VoyagerAuthController';
+    $voyagerController = $namespacePrefix.'VoyagerController';
+    $userController = $namespacePrefix.'VoyagerUserController';
+    $menuController = $namespacePrefix.'VoyagerMenuController';
+    $settingsController = $namespacePrefix.'VoyagerSettingsController';
+    $mediaController = $namespacePrefix.'VoyagerMediaController';
+    $breadController = $namespacePrefix.'VoyagerBreadController';
+    $databaseController = $namespacePrefix.'VoyagerDatabaseController';
+    $compassController = $namespacePrefix.'VoyagerCompassController';
 
-    Route::group(['middleware' => 'admin.user'], function () use ($namespacePrefix) {
+    Route::get('login', [$authController, 'login'])->name('login');
+    Route::post('login', [$authController, 'postLogin'])->name('postlogin');
+
+    Route::group(['middleware' => 'admin.user'], function () use (
+        $namespacePrefix,
+        $voyagerController,
+        $userController,
+        $menuController,
+        $settingsController,
+        $mediaController,
+        $breadController,
+        $databaseController,
+        $compassController
+    ) {
         event(new RoutingAdmin());
 
         // Main Admin and Logout Route
-        Route::get('/', ['uses' => $namespacePrefix.'VoyagerController@index',   'as' => 'dashboard']);
-        Route::post('logout', ['uses' => $namespacePrefix.'VoyagerController@logout',  'as' => 'logout']);
-        Route::post('upload', ['uses' => $namespacePrefix.'VoyagerController@upload',  'as' => 'upload']);
+        Route::get('/', [$voyagerController, 'index'])->name('dashboard');
+        Route::post('logout', [$voyagerController, 'logout'])->name('logout');
+        Route::post('upload', [$voyagerController, 'upload'])->name('upload');
 
-        Route::get('profile', ['uses' => $namespacePrefix.'VoyagerUserController@profile', 'as' => 'profile']);
+        Route::get('profile', [$userController, 'profile'])->name('profile');
 
         try {
             foreach (Voyager::model('DataType')::all() as $dataType) {
-                $breadController = $dataType->controller
+                $breadTypeController = $dataType->controller
                                  ? Str::start($dataType->controller, '\\')
                                  : $namespacePrefix.'VoyagerBaseController';
 
-                Route::get($dataType->slug.'/order', $breadController.'@order')->name($dataType->slug.'.order');
-                Route::post($dataType->slug.'/action', $breadController.'@action')->name($dataType->slug.'.action');
-                Route::post($dataType->slug.'/order', $breadController.'@update_order')->name($dataType->slug.'.update_order');
-                Route::get($dataType->slug.'/{id}/restore', $breadController.'@restore')->name($dataType->slug.'.restore');
-                Route::get($dataType->slug.'/relation', $breadController.'@relation')->name($dataType->slug.'.relation');
-                Route::post($dataType->slug.'/remove', $breadController.'@remove_media')->name($dataType->slug.'.media.remove');
-                Route::resource($dataType->slug, $breadController, ['parameters' => [$dataType->slug => 'id']]);
+                Route::get($dataType->slug.'/order', [$breadTypeController, 'order'])->name($dataType->slug.'.order');
+                Route::post($dataType->slug.'/action', [$breadTypeController, 'action'])->name($dataType->slug.'.action');
+                Route::post($dataType->slug.'/order', [$breadTypeController, 'update_order'])->name($dataType->slug.'.update_order');
+                Route::get($dataType->slug.'/{id}/restore', [$breadTypeController, 'restore'])->name($dataType->slug.'.restore');
+                Route::get($dataType->slug.'/relation', [$breadTypeController, 'relation'])->name($dataType->slug.'.relation');
+                Route::post($dataType->slug.'/remove', [$breadTypeController, 'remove_media'])->name($dataType->slug.'.media.remove');
+                Route::resource($dataType->slug, $breadTypeController, ['parameters' => [$dataType->slug => 'id']]);
             }
         } catch (\InvalidArgumentException $e) {
             throw new \InvalidArgumentException("Custom routes hasn't been configured because: ".$e->getMessage(), 1);
@@ -59,17 +80,17 @@ Route::group(['as' => 'voyager.'], function () {
         Route::group([
             'as'     => 'menus.',
             'prefix' => 'menus/{menu}',
-        ], function () use ($namespacePrefix) {
-            Route::get('builder', ['uses' => $namespacePrefix.'VoyagerMenuController@builder',    'as' => 'builder']);
-            Route::post('order', ['uses' => $namespacePrefix.'VoyagerMenuController@order_item', 'as' => 'order_item']);
+        ], function () use ($menuController) {
+            Route::get('builder', [$menuController, 'builder'])->name('builder');
+            Route::post('order', [$menuController, 'order_item'])->name('order_item');
 
             Route::group([
                 'as'     => 'item.',
                 'prefix' => 'item',
-            ], function () use ($namespacePrefix) {
-                Route::delete('{id}', ['uses' => $namespacePrefix.'VoyagerMenuController@delete_menu', 'as' => 'destroy']);
-                Route::post('/', ['uses' => $namespacePrefix.'VoyagerMenuController@add_item',    'as' => 'add']);
-                Route::put('/', ['uses' => $namespacePrefix.'VoyagerMenuController@update_item', 'as' => 'update']);
+            ], function () use ($menuController) {
+                Route::delete('{id}', [$menuController, 'delete_menu'])->name('destroy');
+                Route::post('/', [$menuController, 'add_item'])->name('add');
+                Route::put('/', [$menuController, 'update_item'])->name('update');
             });
         });
 
@@ -77,63 +98,63 @@ Route::group(['as' => 'voyager.'], function () {
         Route::group([
             'as'     => 'settings.',
             'prefix' => 'settings',
-        ], function () use ($namespacePrefix) {
-            Route::get('/', ['uses' => $namespacePrefix.'VoyagerSettingsController@index',        'as' => 'index']);
-            Route::post('/', ['uses' => $namespacePrefix.'VoyagerSettingsController@store',        'as' => 'store']);
-            Route::put('/', ['uses' => $namespacePrefix.'VoyagerSettingsController@update',       'as' => 'update']);
-            Route::delete('{id}', ['uses' => $namespacePrefix.'VoyagerSettingsController@delete',       'as' => 'delete']);
-            Route::get('{id}/move_up', ['uses' => $namespacePrefix.'VoyagerSettingsController@move_up',      'as' => 'move_up']);
-            Route::get('{id}/move_down', ['uses' => $namespacePrefix.'VoyagerSettingsController@move_down',    'as' => 'move_down']);
-            Route::put('{id}/delete_value', ['uses' => $namespacePrefix.'VoyagerSettingsController@delete_value', 'as' => 'delete_value']);
+        ], function () use ($settingsController) {
+            Route::get('/', [$settingsController, 'index'])->name('index');
+            Route::post('/', [$settingsController, 'store'])->name('store');
+            Route::put('/', [$settingsController, 'update'])->name('update');
+            Route::delete('{id}', [$settingsController, 'delete'])->name('delete');
+            Route::get('{id}/move_up', [$settingsController, 'move_up'])->name('move_up');
+            Route::get('{id}/move_down', [$settingsController, 'move_down'])->name('move_down');
+            Route::put('{id}/delete_value', [$settingsController, 'delete_value'])->name('delete_value');
         });
 
         // Admin Media
         Route::group([
             'as'     => 'media.',
             'prefix' => 'media',
-        ], function () use ($namespacePrefix) {
-            Route::get('/', ['uses' => $namespacePrefix.'VoyagerMediaController@index',              'as' => 'index']);
-            Route::post('files', ['uses' => $namespacePrefix.'VoyagerMediaController@files',              'as' => 'files']);
-            Route::post('new_folder', ['uses' => $namespacePrefix.'VoyagerMediaController@new_folder',         'as' => 'new_folder']);
-            Route::post('delete_file_folder', ['uses' => $namespacePrefix.'VoyagerMediaController@delete', 'as' => 'delete']);
-            Route::post('move_file', ['uses' => $namespacePrefix.'VoyagerMediaController@move',          'as' => 'move']);
-            Route::post('rename_file', ['uses' => $namespacePrefix.'VoyagerMediaController@rename',        'as' => 'rename']);
-            Route::post('upload', ['uses' => $namespacePrefix.'VoyagerMediaController@upload',             'as' => 'upload']);
-            Route::post('crop', ['uses' => $namespacePrefix.'VoyagerMediaController@crop',             'as' => 'crop']);
+        ], function () use ($mediaController) {
+            Route::get('/', [$mediaController, 'index'])->name('index');
+            Route::post('files', [$mediaController, 'files'])->name('files');
+            Route::post('new_folder', [$mediaController, 'new_folder'])->name('new_folder');
+            Route::post('delete_file_folder', [$mediaController, 'delete'])->name('delete');
+            Route::post('move_file', [$mediaController, 'move'])->name('move');
+            Route::post('rename_file', [$mediaController, 'rename'])->name('rename');
+            Route::post('upload', [$mediaController, 'upload'])->name('upload');
+            Route::post('crop', [$mediaController, 'crop'])->name('crop');
         });
 
         // BREAD Routes
         Route::group([
             'as'     => 'bread.',
             'prefix' => 'bread',
-        ], function () use ($namespacePrefix) {
-            Route::get('/', ['uses' => $namespacePrefix.'VoyagerBreadController@index',              'as' => 'index']);
-            Route::get('{table}/create', ['uses' => $namespacePrefix.'VoyagerBreadController@create',     'as' => 'create']);
-            Route::post('/', ['uses' => $namespacePrefix.'VoyagerBreadController@store',   'as' => 'store']);
-            Route::get('{table}/edit', ['uses' => $namespacePrefix.'VoyagerBreadController@edit', 'as' => 'edit']);
-            Route::put('{id}', ['uses' => $namespacePrefix.'VoyagerBreadController@update',  'as' => 'update']);
-            Route::delete('{id}', ['uses' => $namespacePrefix.'VoyagerBreadController@destroy',  'as' => 'delete']);
-            Route::post('relationship', ['uses' => $namespacePrefix.'VoyagerBreadController@addRelationship',  'as' => 'relationship']);
-            Route::get('delete_relationship/{id}', ['uses' => $namespacePrefix.'VoyagerBreadController@deleteRelationship',  'as' => 'delete_relationship']);
+        ], function () use ($breadController) {
+            Route::get('/', [$breadController, 'index'])->name('index');
+            Route::get('{table}/create', [$breadController, 'create'])->name('create');
+            Route::post('/', [$breadController, 'store'])->name('store');
+            Route::get('{table}/edit', [$breadController, 'edit'])->name('edit');
+            Route::put('{id}', [$breadController, 'update'])->name('update');
+            Route::delete('{id}', [$breadController, 'destroy'])->name('delete');
+            Route::post('relationship', [$breadController, 'addRelationship'])->name('relationship');
+            Route::get('delete_relationship/{id}', [$breadController, 'deleteRelationship'])->name('delete_relationship');
         });
 
         // Database Routes
-        Route::resource('database', $namespacePrefix.'VoyagerDatabaseController');
+        Route::resource('database', $databaseController);
 
         // Compass Routes
         Route::group([
             'as'     => 'compass.',
             'prefix' => 'compass',
-        ], function () use ($namespacePrefix) {
-            Route::get('/', ['uses' => $namespacePrefix.'VoyagerCompassController@index',  'as' => 'index']);
-            Route::post('/', ['uses' => $namespacePrefix.'VoyagerCompassController@index',  'as' => 'post']);
+        ], function () use ($compassController) {
+            Route::get('/', [$compassController, 'index'])->name('index');
+            Route::post('/', [$compassController, 'index'])->name('post');
         });
 
         event(new RoutingAdminAfter());
     });
 
     //Asset Routes
-    Route::get('voyager-assets', ['uses' => $namespacePrefix.'VoyagerController@assets', 'as' => 'voyager_assets']);
+    Route::get('voyager-assets', [$voyagerController, 'assets'])->name('voyager_assets');
 
     event(new RoutingAfter());
 });

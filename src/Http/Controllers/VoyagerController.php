@@ -7,9 +7,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Intervention\Image\Constraint;
-use Intervention\Image\Facades\Image;
+use Intervention\Image\Encoders\FileExtensionEncoder;
 use TCG\Voyager\Facades\Voyager;
+use TCG\Voyager\Image\InterventionImageFactory;
 
 class VoyagerController extends Controller
 {
@@ -54,15 +54,11 @@ class VoyagerController extends Controller
         $ext = $file->guessClientExtension();
 
         if (in_array($ext, ['jpeg', 'jpg', 'png', 'gif'])) {
-            $image = Image::make($file)
-                ->resize($resizeWidth, $resizeHeight, function (Constraint $constraint) {
-                    $constraint->aspectRatio();
-                    $constraint->upsize();
-                });
-            if ($ext !== 'gif') {
-                $image->orientate();
-            }
-            $image->encode($file->getClientOriginalExtension(), 75);
+            // Intervention v4: scaleDown() keeps aspect ratio and prevents upsizing,
+            // EXIF orientation is applied automatically on decode
+            $image = InterventionImageFactory::decode($file)
+                ->scaleDown($resizeWidth, $resizeHeight)
+                ->encode(new FileExtensionEncoder($file->getClientOriginalExtension(), quality: 75));
 
             // move uploaded file from temp to uploads directory
             if (Storage::disk(config('voyager.storage.disk'))->put($fullPath, (string) $image, 'public')) {

@@ -2,9 +2,10 @@
 
 namespace TCG\Voyager\Models;
 
-use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Carbon;
 use TCG\Voyager\Contracts\User as UserContract;
 use TCG\Voyager\Tests\Database\Factories\UserFactory;
 use TCG\Voyager\Traits\VoyagerUser;
@@ -17,37 +18,37 @@ class User extends Authenticatable implements UserContract
 
     public $additional_attributes = ['locale'];
 
-    public function getAvatarAttribute($value)
+    protected function avatar(): Attribute
     {
-        return $value ?? config('voyager.user.default_avatar', 'users/default.png');
+        return Attribute::make(
+            get: fn ($value) => $value ?? config('voyager.user.default_avatar', 'users/default.png'),
+        );
     }
 
-    public function setCreatedAtAttribute($value)
+    protected function createdAt(): Attribute
     {
-        $this->attributes['created_at'] = Carbon::parse($value)->format('Y-m-d H:i:s');
+        return Attribute::make(
+            set: fn ($value) => Carbon::parse($value)->format('Y-m-d H:i:s'),
+        );
     }
 
-    public function setSettingsAttribute($value)
+    protected function settings(): Attribute
     {
-        $this->attributes['settings'] = $value ? $value->toJson() : json_encode([]);
+        return Attribute::make(
+            get: fn ($value) => collect(json_decode((string) $value)),
+            set: fn ($value) => $value ? $value->toJson() : json_encode([]),
+        )->withoutObjectCaching();
     }
 
-    public function getSettingsAttribute($value)
+    protected function locale(): Attribute
     {
-        return collect(json_decode((string)$value));
+        return Attribute::make(
+            get: fn () => $this->settings->get('locale'),
+            set: fn ($value) => ['settings' => $this->settings->merge(['locale' => $value])->toJson()],
+        )->withoutObjectCaching();
     }
 
-    public function setLocaleAttribute($value)
-    {
-        $this->settings = $this->settings->merge(['locale' => $value]);
-    }
-
-    public function getLocaleAttribute()
-    {
-        return $this->settings->get('locale');
-    }
-
-    protected static function newFactory()
+    protected static function newFactory(): UserFactory
     {
         return UserFactory::new();
     }

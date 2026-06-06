@@ -2,35 +2,36 @@
 
 namespace TCG\Voyager;
 
-use Illuminate\Contracts\Events\Dispatcher;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Foundation\AliasLoader;
-use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
-use Illuminate\Pagination\Paginator;
-use Illuminate\Routing\Router;
+use PDOException;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
+use Illuminate\Routing\Router;
+use TCG\Voyager\Models\Setting;
+use TCG\Voyager\Models\MenuItem;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
-use Illuminate\Support\Str;
+use TCG\Voyager\Policies\BasePolicy;
+use Illuminate\Foundation\AliasLoader;
+use Illuminate\Support\Facades\Schema;
+use TCG\Voyager\Policies\SettingPolicy;
+use TCG\Voyager\Policies\MenuItemPolicy;
+use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Database\Eloquent\Collection;
 use TCG\Voyager\Events\FormFieldsRegistered;
 use TCG\Voyager\Facades\Voyager as VoyagerFacade;
 use TCG\Voyager\FormFields\After\DescriptionHandler;
-use TCG\Voyager\Http\Middleware\VoyagerAdminMiddleware;
-use TCG\Voyager\Models\MenuItem;
-use TCG\Voyager\Models\Setting;
-use TCG\Voyager\Policies\BasePolicy;
-use TCG\Voyager\Policies\MenuItemPolicy;
-use TCG\Voyager\Policies\SettingPolicy;
 use TCG\Voyager\Providers\VoyagerDummyServiceProvider;
 use TCG\Voyager\Providers\VoyagerEventServiceProvider;
-use TCG\Voyager\Seed;
+use TCG\Voyager\Http\Middleware\VoyagerAdminMiddleware;
 use TCG\Voyager\Translator\Collection as TranslatorCollection;
+use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
 class VoyagerServiceProvider extends ServiceProvider
 {
+
     /**
      * The policy mappings for the application.
      *
@@ -52,7 +53,7 @@ class VoyagerServiceProvider extends ServiceProvider
     /**
      * Register the application services.
      */
-    public function register()
+    public function register(): void
     {
         $this->app->register(VoyagerEventServiceProvider::class);
         $this->app->register(VoyagerDummyServiceProvider::class);
@@ -88,17 +89,17 @@ class VoyagerServiceProvider extends ServiceProvider
     /**
      * Bootstrap the application services.
      *
-     * @param \Illuminate\Routing\Router $router
+     * @param  \Illuminate\Routing\Router  $router
+     * @param  \Illuminate\Contracts\Events\Dispatcher  $event
      */
-    public function boot(Router $router, Dispatcher $event)
+    public function boot(Router $router, Dispatcher $event): void
     {
         if (config('voyager.user.add_default_role_on_register')) {
             $model = Auth::guard(app('VoyagerGuard'))->getProvider()->getModel();
             call_user_func($model.'::created', function ($user) use ($model) {
                 if (is_null($user->role_id)) {
-                    call_user_func($model.'::findOrFail', $user->id)
-                        ->setRole(config('voyager.user.default_role'))
-                        ->save();
+                    call_user_func($model.'::findOrFail', $user->id)->setRole(config('voyager.user.default_role'))
+                                                                    ->save();
                 }
             });
         }
@@ -135,7 +136,7 @@ class VoyagerServiceProvider extends ServiceProvider
     /**
      * Load helpers.
      */
-    protected function loadHelpers()
+    protected function loadHelpers(): void
     {
         foreach (glob(__DIR__.'/Helpers/*.php') as $filename) {
             require_once $filename;
@@ -145,7 +146,7 @@ class VoyagerServiceProvider extends ServiceProvider
     /**
      * Register view composers.
      */
-    protected function registerViewComposers()
+    protected function registerViewComposers(): void
     {
         // Register alerts
         View::composer('voyager::*', function ($view) {
@@ -156,7 +157,7 @@ class VoyagerServiceProvider extends ServiceProvider
     /**
      * Add storage symlink alert.
      */
-    protected function addStorageSymlinkAlert()
+    protected function addStorageSymlinkAlert(): void
     {
         if (app('router')->current() !== null) {
             $currentRouteAction = app('router')->current()->getAction();
@@ -183,27 +184,29 @@ class VoyagerServiceProvider extends ServiceProvider
             }
         } elseif ($storage_disk == 'public') {
             if (!file_exists(public_path('storage')) || @readlink(public_path('storage')) == public_path('storage')) {
-                $alert = (new Alert('missing-storage-symlink', 'warning'))
-                    ->title(__('voyager::error.symlink_missing_title'))
-                    ->text(__('voyager::error.symlink_missing_text'))
-                    ->button(__('voyager::error.symlink_missing_button'), '?fix-missing-storage-symlink=1');
+                $alert = (new Alert('missing-storage-symlink', 'warning'))->title(
+                    __('voyager::error.symlink_missing_title')
+                )->text(__('voyager::error.symlink_missing_text'))->button(
+                    __('voyager::error.symlink_missing_button'),
+                    '?fix-missing-storage-symlink=1'
+                );
                 VoyagerFacade::addAlert($alert);
             }
         }
     }
 
-    protected function fixMissingStorageSymlink()
+    protected function fixMissingStorageSymlink(): void
     {
         app('files')->link(storage_path('app/public'), public_path('storage'));
 
         if (file_exists(public_path('storage'))) {
-            $alert = (new Alert('fixed-missing-storage-symlink', 'success'))
-                ->title(__('voyager::error.symlink_created_title'))
-                ->text(__('voyager::error.symlink_created_text'));
+            $alert = (new Alert('fixed-missing-storage-symlink', 'success'))->title(
+                __('voyager::error.symlink_created_title')
+            )->text(__('voyager::error.symlink_created_text'));
         } else {
-            $alert = (new Alert('failed-fixing-missing-storage-symlink', 'danger'))
-                ->title(__('voyager::error.symlink_failed_title'))
-                ->text(__('voyager::error.symlink_failed_text'));
+            $alert = (new Alert('failed-fixing-missing-storage-symlink', 'danger'))->title(
+                __('voyager::error.symlink_failed_title')
+            )->text(__('voyager::error.symlink_failed_text'));
         }
 
         VoyagerFacade::addAlert($alert);
@@ -212,7 +215,7 @@ class VoyagerServiceProvider extends ServiceProvider
     /**
      * Register alert components.
      */
-    protected function registerAlertComponents()
+    protected function registerAlertComponents(): void
     {
         $components = ['title', 'text', 'button'];
 
@@ -223,7 +226,7 @@ class VoyagerServiceProvider extends ServiceProvider
         }
     }
 
-    protected function bootTranslatorCollectionMacros()
+    protected function bootTranslatorCollectionMacros(): void
     {
         Collection::macro('translate', function () {
             $transtors = [];
@@ -239,7 +242,7 @@ class VoyagerServiceProvider extends ServiceProvider
     /**
      * Register the publishable files.
      */
-    private function registerPublishableResources()
+    private function registerPublishableResources(): void
     {
         $publishablePath = dirname(__DIR__).'/publishable';
 
@@ -247,10 +250,10 @@ class VoyagerServiceProvider extends ServiceProvider
             'voyager_avatar' => [
                 "{$publishablePath}/dummy_content/users/" => storage_path('app/public/users'),
             ],
-            'seeders' => [
+            'seeders'        => [
                 "{$publishablePath}/database/seeders/" => database_path('seeders'),
             ],
-            'config' => [
+            'config'         => [
                 "{$publishablePath}/config/voyager.php" => config_path('voyager.php'),
             ],
 
@@ -261,7 +264,7 @@ class VoyagerServiceProvider extends ServiceProvider
         }
     }
 
-    public function registerConfigs()
+    public function registerConfigs(): void
     {
         $this->mergeConfigFrom(
             dirname(__DIR__).'/publishable/config/voyager.php',
@@ -269,7 +272,7 @@ class VoyagerServiceProvider extends ServiceProvider
         );
     }
 
-    public function loadAuth()
+    public function loadAuth(): void
     {
         // DataType Policies
 
@@ -283,8 +286,9 @@ class VoyagerServiceProvider extends ServiceProvider
 
                 foreach ($dataTypes as $dataType) {
                     $policyClass = BasePolicy::class;
-                    if (isset($dataType->policy_name) && $dataType->policy_name !== ''
-                        && class_exists($dataType->policy_name)) {
+                    if (isset($dataType->policy_name) && $dataType->policy_name !== '' && class_exists(
+                            $dataType->policy_name
+                        )) {
                         $policyClass = $dataType->policy_name;
                     }
 
@@ -293,8 +297,10 @@ class VoyagerServiceProvider extends ServiceProvider
 
                 $this->registerPolicies();
             }
-        } catch (\PDOException $e) {
-            Log::info('No database connection yet in VoyagerServiceProvider loadAuth(). No worries, this is not a problem!');
+        } catch (PDOException $e) {
+            Log::info(
+                'No database connection yet in VoyagerServiceProvider loadAuth(). No worries, this is not a problem!'
+            );
         }
 
         // Gates
@@ -305,7 +311,7 @@ class VoyagerServiceProvider extends ServiceProvider
         }
     }
 
-    protected function registerFormFields()
+    protected function registerFormFields(): void
     {
         $formFields = [
             'checkbox',
@@ -346,7 +352,7 @@ class VoyagerServiceProvider extends ServiceProvider
     /**
      * Register the commands accessible from the Console.
      */
-    private function registerConsoleCommands()
+    private function registerConsoleCommands(): void
     {
         $this->commands(Commands\InstallCommand::class);
         $this->commands(Commands\ControllersCommand::class);
@@ -356,7 +362,7 @@ class VoyagerServiceProvider extends ServiceProvider
     /**
      * Register the commands accessible from the App.
      */
-    private function registerAppCommands()
+    private function registerAppCommands(): void
     {
         $this->commands(Commands\MakeModelCommand::class);
     }

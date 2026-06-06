@@ -5,14 +5,14 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-class MakeSettingsValueNullable extends Migration
+return new class() extends Migration
 {
     /**
      * Run the migrations.
      *
      * @return void
      */
-    public function up()
+    public function up(): void
     {
         Schema::table('settings', function (Blueprint $table) {
             $table->text('value')->nullable()->change();
@@ -24,7 +24,7 @@ class MakeSettingsValueNullable extends Migration
      *
      * @return void
      */
-    public function down()
+    public function down(): void
     {
         DB::table('settings')->whereNull('value')->update(['value' => '']);
 
@@ -32,4 +32,4 @@ class MakeSettingsValueNullable extends Migration
             $table->text('value')->nullable(false)->change();
         });
     }
-}
+};

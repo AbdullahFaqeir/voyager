@@ -5,18 +5,19 @@ namespace TCG\Voyager\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Composer;
-use Symfony\Component\Console\Input\InputOption;
 use TCG\Voyager\Providers\VoyagerDummyServiceProvider;
 use TCG\Voyager\VoyagerServiceProvider;
 
 class InstallCommand extends Command
 {
     /**
-     * The console command name.
+     * The name and signature of the console command.
      *
      * @var string
      */
-    protected $name = 'voyager:install';
+    protected $signature = 'voyager:install
+                            {--force : Force the operation to run when in production}
+                            {--with-dummy : Install with dummy data}';
 
     /**
      * The console command description.
@@ -26,63 +27,19 @@ class InstallCommand extends Command
     protected $description = 'Install the Voyager Admin package';
 
     /**
-     * The Composer instance.
-     *
-     * @var \Illuminate\Foundation\Composer
+     * Create a new command instance.
      */
-    protected $composer;
-
-    /**
-     * Seed Folder name.
-     *
-     * @var string
-     */
-    protected $seedFolder;
-
-    public function __construct(Composer $composer)
+    public function __construct(protected Composer $composer)
     {
         parent::__construct();
 
-        $this->composer = $composer;
         $this->composer->setWorkingPath(base_path());
-
-    }
-
-    protected function getOptions()
-    {
-        return [
-            ['force', null, InputOption::VALUE_NONE, 'Force the operation to run when in production', null],
-            ['with-dummy', null, InputOption::VALUE_NONE, 'Install with dummy data', null],
-        ];
-    }
-
-    /**
-     * Get the composer command for the environment.
-     *
-     * @return string
-     */
-    protected function findComposer()
-    {
-        if (file_exists(getcwd().'/composer.phar')) {
-            return '"'.PHP_BINARY.'" '.getcwd().'/composer.phar';
-        }
-
-        return 'composer';
-    }
-
-    public function fire(Filesystem $filesystem)
-    {
-        return $this->handle($filesystem);
     }
 
     /**
      * Execute the console command.
-     *
-     * @param \Illuminate\Filesystem\Filesystem $filesystem
-     *
-     * @return void
      */
-    public function handle(Filesystem $filesystem)
+    public function handle(Filesystem $filesystem): int
     {
         $this->info('Publishing the Voyager assets, database, and config files');
 
@@ -112,14 +69,12 @@ class InstallCommand extends Command
 
         $this->info('Adding Voyager routes to routes/web.php');
         $routes_contents = $filesystem->get(base_path('routes/web.php'));
-        if (false === strpos($routes_contents, 'Voyager::routes()')) {
+        if (!str_contains($routes_contents, 'Voyager::routes()')) {
             $filesystem->append(
                 base_path('routes/web.php'),
                 PHP_EOL.PHP_EOL."Route::group(['prefix' => 'admin'], function () {".PHP_EOL."    Voyager::routes();".PHP_EOL."});".PHP_EOL
             );
         }
-
-        $publishablePath = dirname(__DIR__).'/../publishable';
 
         if ($this->option('with-dummy')) {
             $this->info('Publishing dummy content');
@@ -147,6 +102,7 @@ class InstallCommand extends Command
         $this->call('storage:link');
 
         $this->info('Successfully installed Voyager! Enjoy');
-    }
 
+        return self::SUCCESS;
+    }
 }

@@ -2,14 +2,17 @@
 
 namespace TCG\Voyager\Database\Types;
 
-use Doctrine\DBAL\Platforms\AbstractPlatform as DoctrineAbstractPlatform;
 use Doctrine\DBAL\Types\Type as DoctrineType;
+use Illuminate\Support\Collection;
 use TCG\Voyager\Database\Platforms\Platform;
 use TCG\Voyager\Database\Schema\SchemaManager;
+use Doctrine\DBAL\Platforms\AbstractPlatform as DoctrineAbstractPlatform;
 
 abstract class Type extends DoctrineType
 {
+
     protected static $customTypesRegistered = false;
+    protected static $registeredPlatforms = [];
     protected static $platformTypeMapping = [];
     protected static $allTypes = [];
     protected static $platformTypes = [];
@@ -24,21 +27,34 @@ abstract class Type extends DoctrineType
 
     // Note: length, precision and scale need default values manually
 
-    public function getName()
+    public function getName(): string
     {
         return static::NAME;
     }
 
-    public static function toArray(DoctrineType $type)
+    public static function toArray(DoctrineType $type): array
     {
         $customTypeOptions = $type->customOptions ?? [];
 
         return array_merge([
-            'name' => $type->getName(),
+            'name' => static::getTypeName($type),
         ], $customTypeOptions);
     }
 
-    public static function getPlatformTypes()
+    /**
+     * Resolve the registered name of a type instance.
+     * DBAL 4 removed Type::getName(), so look it up in the type registry.
+     */
+    public static function getTypeName(DoctrineType $type): string
+    {
+        try {
+            return DoctrineType::getTypeRegistry()->lookupName($type);
+        } catch (\Doctrine\DBAL\Exception $e) {
+            return method_exists($type, 'getName') ? $type->getName() : self::NAME;
+        }
+    }
+
+    public static function getPlatformTypes(): Collection
     {
         if (static::$platformTypes) {
             return static::$platformTypes;
@@ -51,7 +67,7 @@ abstract class Type extends DoctrineType
         $platform = SchemaManager::getDatabasePlatform();
 
         static::$platformTypes = Platform::getPlatformTypes(
-            $platform->getName(),
+            Platform::getPlatformName($platform),
             static::getPlatformTypeMapping($platform)
         );
 
@@ -62,10 +78,15 @@ abstract class Type extends DoctrineType
         return static::$platformTypes;
     }
 
-    public static function getPlatformTypeMapping(DoctrineAbstractPlatform $platform)
+    public static function getPlatformTypeMapping(DoctrineAbstractPlatform $platform): Collection
     {
         if (static::$platformTypeMapping) {
             return static::$platformTypeMapping;
+        }
+
+        // The mapping is initialized lazily in DBAL 4; force initialization
+        if (get_protected_property($platform, 'doctrineTypeMapping') === null) {
+            call_protected_method($platform, 'initializeAllDoctrineTypeMappings');
         }
 
         static::$platformTypeMapping = collect(
@@ -77,16 +98,20 @@ abstract class Type extends DoctrineType
 
     public static function registerCustomPlatformTypes($force = false)
     {
-        if (static::$customTypesRegistered && !$force) {
-            return;
-        }
-
         /**
-         * @var \Doctrine\DBAL\Platforms\MySQL84Platform $platform
+         * @var \Doctrine\DBAL\Platforms\AbstractPlatform $platform
          */
         $platform = SchemaManager::getDatabasePlatform();
 
-        $platformName = ucfirst('mysql');
+        // The platform instance changes whenever the underlying connection
+        // changes, so track registration per platform instance.
+        $platformId = spl_object_id($platform);
+
+        if (isset(static::$registeredPlatforms[$platformId]) && !$force) {
+            return;
+        }
+
+        $platformName = ucfirst(Platform::getPlatformName($platform));
 
         $customTypes = array_merge(
             static::getPlatformCustomTypes('Common'),
@@ -107,8 +132,11 @@ abstract class Type extends DoctrineType
             $platform->registerDoctrineTypeMapping($dbType, $name);
         }
 
-        static::addCustomTypeOptions($platformName);
+        if (!static::$customTypesRegistered || $force) {
+            static::addCustomTypeOptions($platformName);
+        }
 
+        static::$registeredPlatforms[$platformId] = true;
         static::$customTypesRegistered = true;
     }
 
@@ -136,10 +164,10 @@ abstract class Type extends DoctrineType
 
         foreach (glob($typesPath.'*.php') as $classFile) {
             $types[] = $namespace.str_replace(
-                '.php',
-                '',
-                str_replace($typesPath, '', $classFile)
-            );
+                    '.php',
+                    '',
+                    str_replace($typesPath, '', $classFile)
+                );
         }
 
         return $types;

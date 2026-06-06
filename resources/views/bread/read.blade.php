@@ -92,7 +92,7 @@
                                 @endif
                             @elseif($row->type == 'date' || $row->type == 'timestamp')
                                 @if ( property_exists($row->details, 'format') && !is_null($dataTypeContent->{$row->field}) )
-                                    {{ \Carbon\Carbon::parse($dataTypeContent->{$row->field})->formatLocalized($row->details->format) }}
+                                    {{ \Carbon\Carbon::parse($dataTypeContent->{$row->field})->isoFormat($row->details->format) }}
                                 @else
                                     {{ $dataTypeContent->{$row->field} }}
                                 @endif

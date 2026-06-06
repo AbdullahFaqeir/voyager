@@ -90,7 +90,7 @@ class VoyagerBaseController extends Controller
                 if ($row = $this->findSearchableRelationshipRow($dataType->rows->where('type', 'relationship'), $search->key)) {
                     $query->whereIn(
                         $searchField,
-                        $row->details->model::where($row->details->label, $search_filter, $search_value)->pluck('id')->toArray()
+                        $row->details->model::query()->where($row->details->label, $search_filter, $search_value)->pluck('id')->toArray()
                     );
                 } else {
                     if ($dataType->browseRows->pluck('field')->contains($search->key)) {

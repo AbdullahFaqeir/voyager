@@ -3,23 +3,24 @@
 namespace TCG\Voyager\Http\Controllers;
 
 use Exception;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use TCG\Voyager\Database\DatabaseUpdater;
-use TCG\Voyager\Database\Schema\Column;
-use TCG\Voyager\Database\Schema\Identifier;
-use TCG\Voyager\Database\Schema\SchemaManager;
-use TCG\Voyager\Database\Schema\Table;
-use TCG\Voyager\Database\Types\Type;
+use Illuminate\Http\Request;
+use TCG\Voyager\Facades\Voyager;
+use Illuminate\Support\Facades\DB;
 use TCG\Voyager\Events\TableAdded;
+use TCG\Voyager\Database\Types\Type;
 use TCG\Voyager\Events\TableDeleted;
 use TCG\Voyager\Events\TableUpdated;
-use TCG\Voyager\Facades\Voyager;
+use TCG\Voyager\Database\Schema\Table;
+use Illuminate\Support\Facades\Artisan;
+use TCG\Voyager\Database\DatabaseUpdater;
+use TCG\Voyager\Database\Platforms\Platform;
+use TCG\Voyager\Database\Schema\Identifier;
+use TCG\Voyager\Database\Schema\SchemaManager;
 
 class VoyagerDatabaseController extends Controller
 {
+
     public function index()
     {
         $this->authorize('browse_database');
@@ -36,7 +37,7 @@ class VoyagerDatabaseController extends Controller
                 'dataTypeId' => $dataTypes[$table]['id'] ?? null,
             ];
 
-            return (object) $table;
+            return (object)$table;
         }, SchemaManager::listTableNames());
 
         return Voyager::view('voyager::tools.database.index')->with(compact('dataTypes', 'tables'));
@@ -59,7 +60,7 @@ class VoyagerDatabaseController extends Controller
     /**
      * Store new database table.
      *
-     * @param \Illuminate\Http\Request $request
+     * @param  \Illuminate\Http\Request  $request
      *
      * @return \Illuminate\Http\RedirectResponse
      */
@@ -104,9 +105,9 @@ class VoyagerDatabaseController extends Controller
 
             event(new TableAdded($table));
 
-            return redirect()
-               ->route('voyager.database.index')
-               ->with($this->alertSuccess(__('voyager::database.success_create_table', ['table' => $table->name])));
+            return redirect()->route('voyager.database.index')->with(
+                $this->alertSuccess(__('voyager::database.success_create_table', ['table' => $table->name]))
+            );
         } catch (Exception $e) {
             return back()->with($this->alertException($e))->withInput();
         }
@@ -115,7 +116,7 @@ class VoyagerDatabaseController extends Controller
     /**
      * Edit database table.
      *
-     * @param string $table
+     * @param  string  $table
      *
      * @return \Illuminate\Http\RedirectResponse
      */
@@ -124,9 +125,9 @@ class VoyagerDatabaseController extends Controller
         $this->authorize('browse_database');
 
         if (!SchemaManager::tableExists($table)) {
-            return redirect()
-                ->route('voyager.database.index')
-                ->with($this->alertError(__('voyager::database.edit_table_not_exist')));
+            return redirect()->route('voyager.database.index')->with(
+                $this->alertError(__('voyager::database.edit_table_not_exist'))
+            );
         }
 
         $db = $this->prepareDbManager('update', $table);
@@ -137,7 +138,7 @@ class VoyagerDatabaseController extends Controller
     /**
      * Update database table.
      *
-     * @param \Illuminate\Http\Request $request
+     * @param  \Illuminate\Http\Request  $request
      *
      * @return \Illuminate\Http\RedirectResponse
      */
@@ -156,9 +157,9 @@ class VoyagerDatabaseController extends Controller
             return back()->with($this->alertException($e))->withInput();
         }
 
-        return redirect()
-               ->route('voyager.database.index')
-               ->with($this->alertSuccess(__('voyager::database.success_create_table', ['table' => $table['name']])));
+        return redirect()->route('voyager.database.index')->with(
+            $this->alertSuccess(__('voyager::database.success_create_table', ['table' => $table['name']]))
+        );
     }
 
     protected function prepareDbManager($action, $table = '')
@@ -190,7 +191,7 @@ class VoyagerDatabaseController extends Controller
         $db->oldTable = $oldTable ? $oldTable : json_encode(null);
         $db->action = $action;
         $db->identifierRegex = Identifier::REGEX;
-        $db->platform = SchemaManager::getDatabasePlatform()->getName();
+        $db->platform = Platform::getPlatformName(SchemaManager::getDatabasePlatform());
 
         return $db;
     }
@@ -235,7 +236,7 @@ class VoyagerDatabaseController extends Controller
     /**
      * Show table.
      *
-     * @param string $table
+     * @param  string  $table
      *
      * @return JSON
      */
@@ -260,7 +261,7 @@ class VoyagerDatabaseController extends Controller
     /**
      * Destroy table.
      *
-     * @param string $table
+     * @param  string  $table
      *
      * @return \Illuminate\Http\RedirectResponse
      */
@@ -272,9 +273,9 @@ class VoyagerDatabaseController extends Controller
             SchemaManager::dropTable($table);
             event(new TableDeleted($table));
 
-            return redirect()
-                ->route('voyager.database.index')
-                ->with($this->alertSuccess(__('voyager::database.success_delete_table', ['table' => $table])));
+            return redirect()->route('voyager.database.index')->with(
+                $this->alertSuccess(__('voyager::database.success_delete_table', ['table' => $table]))
+            );
         } catch (Exception $e) {
             return back()->with($this->alertException($e));
         }

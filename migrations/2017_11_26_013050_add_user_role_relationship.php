@@ -4,17 +4,19 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class AddUserRoleRelationship extends Migration
+return new class() extends Migration
 {
     /**
      * Run the migrations.
      *
      * @return void
      */
-    public function up()
+    public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->bigInteger('role_id')->unsigned()->change();
+            // Keep nullable: since Laravel 11, change() drops any modifier
+            // that is not explicitly repeated in the new definition.
+            $table->bigInteger('role_id')->unsigned()->nullable()->change();
             $table->foreign('role_id')->references('id')->on('roles');
         });
     }
@@ -24,7 +26,7 @@ class AddUserRoleRelationship extends Migration
      *
      * @return void
      */
-    public function down()
+    public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
             $table->dropForeign(['role_id']);
@@ -34,4 +36,4 @@ class AddUserRoleRelationship extends Migration
             $table->bigInteger('role_id')->change();
         });
     }
-}
+};

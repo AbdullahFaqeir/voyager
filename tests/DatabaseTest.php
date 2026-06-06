@@ -2,7 +2,7 @@
 
 namespace TCG\Voyager\Tests;
 
-use Doctrine\DBAL\Schema\SchemaException;
+use Doctrine\DBAL\Schema\Exception\TableDoesNotExist;
 use Illuminate\Support\Facades\Auth;
 use TCG\Voyager\Database\Schema\SchemaManager;
 use TCG\Voyager\Database\Schema\Table;
@@ -61,8 +61,8 @@ class DatabaseTest extends TestCase
         $id = $dbTable->getColumn('id');
         $details = $dbTable->getColumn('details');
         // Column Type
-        $this->assertEquals('integer', $id->getType()->getName());
-        $this->assertEquals('json', $details->getType()->getName());
+        $this->assertEquals('integer', Type::getTypeName($id->getType()));
+        $this->assertEquals('json', Type::getTypeName($details->getType()));
         // Column auto increment
         $this->assertTrue($id->getAutoIncrement());
         // Column not null
@@ -120,7 +120,7 @@ class DatabaseTest extends TestCase
         ]);
 
         $this->assertSessionHasAll(
-            $this->alertException(SchemaException::tableDoesNotExist($table['name']))
+            $this->alertException(TableDoesNotExist::new($table['name']))
         );
     }
 
@@ -146,7 +146,7 @@ class DatabaseTest extends TestCase
         $dbTable = $this->update_table($dbTable->toArray());
 
         $this->assertTrue($dbTable->hasColumn($column));
-        $this->assertEquals('text', $dbTable->getColumn($column)->getType()->getName());
+        $this->assertEquals('text', Type::getTypeName($dbTable->getColumn($column)->getType()));
     }
 
     protected function can_rename_column()
@@ -175,7 +175,7 @@ class DatabaseTest extends TestCase
 
         $dbTable = $this->update_table($this->table);
 
-        $this->assertEquals($newType, $dbTable->getColumn($columnName)->getType()->getName());
+        $this->assertEquals($newType, Type::getTypeName($dbTable->getColumn($columnName)->getType()));
     }
 
     protected function can_change_column_options()

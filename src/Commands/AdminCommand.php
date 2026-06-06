@@ -6,17 +6,18 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Symfony\Component\Console\Input\InputOption;
 use TCG\Voyager\Facades\Voyager;
 
 class AdminCommand extends Command
 {
     /**
-     * The console command name.
+     * The name and signature of the console command.
      *
      * @var string
      */
-    protected $name = 'voyager:admin';
+    protected $signature = 'voyager:admin
+                            {email? : The email of the user}
+                            {--create : Create an admin user}';
 
     /**
      * The console command description.
@@ -26,26 +27,9 @@ class AdminCommand extends Command
     protected $description = 'Make sure there is a user with the admin role that has all of the necessary permissions.';
 
     /**
-     * Get user options.
-     */
-    protected function getOptions()
-    {
-        return [
-            ['create', null, InputOption::VALUE_NONE, 'Create an admin user', null],
-        ];
-    }
-
-    public function fire()
-    {
-        return $this->handle();
-    }
-
-    /**
      * Execute the console command.
-     *
-     * @return void
      */
-    public function handle()
+    public function handle(): int
     {
         // Get or create user
         $user = $this->getUser(
@@ -54,7 +38,7 @@ class AdminCommand extends Command
 
         // the user not returned
         if (!$user) {
-            exit;
+            return self::FAILURE;
         }
 
         // Get or create role
@@ -73,26 +57,14 @@ class AdminCommand extends Command
         $user->save();
 
         $this->info('The user now has full access to your site.');
-    }
 
-    /**
-     * Get command arguments.
-     *
-     * @return array
-     */
-    protected function getArguments()
-    {
-        return [
-            ['email', InputOption::VALUE_REQUIRED, 'The email of the user.', null],
-        ];
+        return self::SUCCESS;
     }
 
     /**
      * Get the administrator role, create it if it does not exists.
-     *
-     * @return mixed
      */
-    protected function getAdministratorRole()
+    protected function getAdministratorRole(): mixed
     {
         $role = Voyager::model('Role')->firstOrNew([
             'name' => 'admin',
@@ -109,12 +81,8 @@ class AdminCommand extends Command
 
     /**
      * Get or create user.
-     *
-     * @param bool $create
-     *
-     * @return \App\User
      */
-    protected function getUser($create = false)
+    protected function getUser(bool $create = false): mixed
     {
         $email = $this->argument('email');
 
@@ -133,29 +101,28 @@ class AdminCommand extends Command
             }
 
             // check if user with given email exists
-
-            if ($model::where('email', $email)->exists()) {
+            if ($model::query()->where('email', $email)->exists()) {
                 $this->info("Can't create user. User with the email ".$email.' exists already.');
 
-                return;
+                return null;
             }
 
             // Passwords don't match
             if ($password != $confirmPassword) {
                 $this->info("Passwords don't match");
 
-                return;
+                return null;
             }
 
             $this->info('Creating admin account');
 
-            return call_user_func($model.'::forceCreate', [
+            return $model::forceCreate([
                 'name'     => $name,
                 'email'    => $email,
                 'password' => Hash::make($password),
             ]);
         }
 
-        return call_user_func($model.'::where', 'email', $email)->firstOrFail();
+        return $model::query()->where('email', $email)->firstOrFail();
     }
 }
