@@ -48,7 +48,12 @@ class User extends Authenticatable implements UserContract
         )->withoutObjectCaching();
     }
 
-    protected static function newFactory(): UserFactory
+    /**
+     * Create a new factory instance for the model.
+     *
+     * @return UserFactory
+     */
+    protected static function newFactory()
     {
         return UserFactory::new();
     }
